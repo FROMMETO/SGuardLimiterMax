@@ -1,4 +1,4 @@
-ï»¿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 
@@ -86,21 +86,29 @@ public static class PowerManager
     /// <summary>
     /// Captures the current active plan, then activates the best available
     /// performance plan. If <paramref name="targetGuid"/> is provided, that
-    /// specific plan is used; otherwise falls back to Ultimate â†’ High Performance.
+    /// specific plan is used; otherwise falls back to Ultimate ¡ú High Performance.
     /// </summary>
     public static void ActivatePerformancePlan(string? targetGuid = null)
     {
-        _originalGuid ??= GetActivePlanGuid();
+        if (_originalGuid == null)
+        {
+            var current = GetActivePlanGuid();
+            // Never treat a performance plan as the "original" to restore to.
+            if (current != null && current != GuidUltimatePerformance && current != GuidHighPerformance)
+                _originalGuid = current;
+            DiagLog("ACTIVATE capture orig=" + (_originalGuid ?? "null<perf-skipped>") + " | rawActive=" + (current ?? "null"));
+        }
 
         if (!string.IsNullOrWhiteSpace(targetGuid))
         {
             TrySetPlan(targetGuid);
-            DiagLog("ACTIVATE target=" + targetGuid + " | capturedOrig=" + (_originalGuid ?? "null"));
+            DiagLog("ACTIVATE target=" + targetGuid);
             return;
         }
 
         if (!TrySetPlan(GuidUltimatePerformance))
             TrySetPlan(GuidHighPerformance);
+        DiagLog("ACTIVATE auto | triedUltimate first");
     }
 
     private static void DiagLog(string msg)
@@ -120,7 +128,7 @@ public static class PowerManager
     /// </summary>
     public static void RestoreOriginalPlan()
     {
-        // Priority: captured original â†’ startup capture â†’ balanced (always safe)
+        // Priority: captured original ¡ú startup capture ¡ú balanced (always safe)
         string? guidToRestore = _originalGuid ?? _startupGuid ?? GuidBalanced;
         bool ok = TrySetPlan(guidToRestore);
         DiagLog("RESTORE called | guid=" + guidToRestore + " | success=" + ok + " | origWas=" + (_originalGuid ?? "null") + " | startup=" + (_startupGuid ?? "null"));
