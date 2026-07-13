@@ -1,4 +1,4 @@
-namespace SGuardLimiterMax.Models;
+﻿namespace SGuardLimiterMax.Models;
 
 /// <summary>
 /// Serializable configuration model. Stored as Config.json next to the executable.
@@ -50,6 +50,14 @@ public class AppConfig
 
     /// <summary>Restore the original power plan when the app exits or a game session ends. Default true.</summary>
     public bool RestorePowerOnExit { get; set; } = true;
+    /// <summary>游戏启动时自动切换到专属卓越性能电源计划（8c5e7fda...），退出时恢复。与 OptimizePower 独立。</summary>
+    public bool UltimateModeForValorant { get; set; } = true;
+
+    /// <summary>卓越模式使用的电源计划 GUID，默认 High Performance。</summary>
+    public string UltimateModePowerPlanGuid { get; set; } = "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c";
+
+    /// <summary>手动切换卓越模式的全局热键，如 "Ctrl+Shift+U"。空字符串表示禁用。</summary>
+    public string ToggleUltimateModeHotkey { get; set; } = "";
 
     /// <summary>Restore the system timer resolution when the app exits or a game session ends. Default true.</summary>
     public bool RestoreTimerOnExit { get; set; } = true;
