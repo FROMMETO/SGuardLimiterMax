@@ -52,6 +52,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         _config = ConfigManager.Load();
 
+        // Capture the current power plan at startup as a safe fallback for restore.
+        PowerManager.CaptureStartupPlan();
+
         // Sync startup entry with current exe path on every launch.
         StartupManager.Sync(_config.AutoStart);
 

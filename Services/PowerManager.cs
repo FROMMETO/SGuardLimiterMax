@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text.RegularExpressions;
 
 namespace SGuardLimiterMax.Services;
@@ -18,9 +18,16 @@ public static class PowerManager
     private const string GuidHighPerformance     = "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c";
 
     private static string? _originalGuid;
+    private static string? _startupGuid; // captured at app startup; fallback for restore
 
     /// <summary>True if the power plan was switched and not yet restored.</summary>
     public static bool IsActivated => _originalGuid != null;
+
+    /// <summary>Capture the current power plan at startup as a safe fallback for restore.</summary>
+    public static void CaptureStartupPlan()
+    {
+        _startupGuid ??= GetActivePlanGuid();
+    }
 
     /// <summary>
     /// Queries all power plans installed on the system via powercfg /list.
@@ -93,8 +100,9 @@ public static class PowerManager
     /// </summary>
     public static void RestoreOriginalPlan()
     {
-        if (_originalGuid == null) return;
-        TrySetPlan(_originalGuid);
+        string? guidToRestore = _originalGuid ?? _startupGuid;
+        if (guidToRestore == null) return;
+        TrySetPlan(guidToRestore);
         _originalGuid = null;
     }
 
