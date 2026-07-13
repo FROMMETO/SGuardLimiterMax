@@ -16,6 +16,7 @@ public static class PowerManager
 {
     private const string GuidUltimatePerformance = "e9a42b02-d5df-448d-aa00-03f14749eb61";
     private const string GuidHighPerformance     = "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c";
+    private const string GuidBalanced            = "381b4222-f694-41f0-9685-ff5bb260df2e";
 
     private static string? _originalGuid;
     private static string? _startupGuid; // captured at app startup; fallback for restore
@@ -26,7 +27,12 @@ public static class PowerManager
     /// <summary>Capture the current power plan at startup as a safe fallback for restore.</summary>
     public static void CaptureStartupPlan()
     {
-        _startupGuid ??= GetActivePlanGuid();
+        if (_startupGuid != null) return;
+        var guid = GetActivePlanGuid();
+        if (guid == null) return;
+        // Never treat a performance plan as the "original" to restore to.
+        if (guid == GuidUltimatePerformance || guid == GuidHighPerformance) return;
+        _startupGuid = guid;
     }
 
     /// <summary>
@@ -100,8 +106,8 @@ public static class PowerManager
     /// </summary>
     public static void RestoreOriginalPlan()
     {
-        string? guidToRestore = _originalGuid ?? _startupGuid;
-        if (guidToRestore == null) return;
+        // Priority: captured original → startup capture → balanced (always safe)
+        string? guidToRestore = _originalGuid ?? _startupGuid ?? GuidBalanced;
         TrySetPlan(guidToRestore);
         _originalGuid = null;
     }
