@@ -647,9 +647,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(IsPowerActivated));
         OnPropertyChanged(nameof(IsTimerResolutionActive));
 
-        bool restoredAny = (_config.TimerResolution && _config.RestoreTimerOnExit) ||
-                           ((_config.OptimizePower || _config.UltimateModeForValorant) && _config.RestorePowerOnExit);
-        string suffix = restoredAny ? "，优化已还原。" : "。";
+        bool powerWasOptimized = (_config.OptimizePower || _config.UltimateModeForValorant) && _config.RestorePowerOnExit;
+        bool timerWasAdjusted  = _config.TimerResolution && _config.RestoreTimerOnExit;
+        bool restoredAny = timerWasAdjusted || powerWasOptimized;
+        string suffix = restoredAny
+            ? (powerWasOptimized ? "，电源计划已恢复。" : "，优化已还原。")
+            : "。";
         GameExited?.Invoke($"{exitedNames} 已退出{suffix}");
 
         if (_config.ExitWithGame)
@@ -677,7 +680,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (_config.ThrottleSGuard)     items.Add("SGuard 已限制");
         if (_config.BoostGamePriority)  items.Add("进程优先级 High");
         if (_config.UnbindCPU)          items.Add("核心 0 已解绑");
-        if (_config.OptimizePower || _config.UltimateModeForValorant)      items.Add("卓越电源");
+        if (_config.OptimizePower || _config.UltimateModeForValorant)      items.Add("卓越电源已激活");
         if (_config.FlushDNS)           items.Add("DNS 已刷新");
         if (_config.TimerResolution)    items.Add("计时器 1ms");
         return items.Count > 0 ? string.Join(" · ", items) : "（所有优化已关闭）";
