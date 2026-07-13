@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
@@ -6,6 +6,7 @@ using System.Windows.Threading;
 using Application = System.Windows.Application;
 using SGuardLimiterMax.Models;
 using SGuardLimiterMax.Services;
+using System.Windows.Input;
 
 namespace SGuardLimiterMax.ViewModels;
 
@@ -70,6 +71,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _timerResolutionPoller.Start();
 
         StartMonitor();
+
+        SetupUltimateModeHotkey();
 
         if (_config.CheckForUpdates)
             _ = CheckForUpdatesAsync();
@@ -140,6 +143,33 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         get => _config.RestorePowerOnExit;
         set { _config.RestorePowerOnExit = value; OnPropertyChanged(); }
+    }
+
+    public bool UltimateModeForValorant
+    {
+        get => _config.UltimateModeForValorant;
+        set { _config.UltimateModeForValorant = value; OnPropertyChanged(); }
+    }
+
+    public string UltimateModePowerPlanGuid
+    {
+        get => _config.UltimateModePowerPlanGuid;
+        set
+        {
+            _config.UltimateModePowerPlanGuid = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string ToggleUltimateModeHotkey
+    {
+        get => _config.ToggleUltimateModeHotkey;
+        set
+        {
+            _config.ToggleUltimateModeHotkey = value;
+            OnPropertyChanged();
+            SetupUltimateModeHotkey();
+        }
     }
 
     public bool RestoreTimerOnExit
@@ -346,7 +376,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>True if the power plan was switched this session and not yet restored.</summary>
-    public bool IsPowerActivated => _config.OptimizePower && PowerManager.IsActivated;
+    public bool IsPowerActivated => (_config.OptimizePower || _config.UltimateModeForValorant) && PowerManager.IsActivated;
 
     public string StatusText
     {
@@ -358,6 +388,33 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
     /// <summary>Persists the current toggle state to disk.</summary>
     public void SaveConfig() => ConfigManager.Save(_config);
+
+    /// <summary>
+    /// Manually toggle Ultimate Mode power plan via hotkey callback.
+    /// If already activated, restore; otherwise activate.
+    /// </summary>
+    public void ToggleUltimateMode()
+    {
+        if (!_config.UltimateModeForValorant) return;
+        if (PowerManager.IsActivated)
+            PowerManager.RestoreOriginalPlan();
+        else
+            PowerManager.ActivatePerformancePlan(_config.UltimateModePowerPlanGuid);
+        OnPropertyChanged(nameof(IsPowerActivated));
+        _ = RefreshPowerPlansAsync();
+    }
+
+    /// <summary>
+    /// Parse the configured hotkey string and register / unregister the global hotkey.
+    /// Safe to call before GlobalHotkeyService.Initialize() — will no-op.
+    /// </summary>
+    private void SetupUltimateModeHotkey()
+    {
+        if (GlobalHotkeyService.TryParseHotkey(_config.ToggleUltimateModeHotkey, out var mods, out var key))
+            GlobalHotkeyService.RegisterHotKey(mods, key, ToggleUltimateMode);
+        else
+            GlobalHotkeyService.UnregisterCurrentHotkey();
+    }
 
     public void SaveThemePreference(bool dark)
     {
@@ -553,6 +610,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (_config.OptimizePower)
             PowerManager.ActivatePerformancePlan(_config.TargetPowerPlanGuid);
 
+        if (_config.UltimateModeForValorant)
+            PowerManager.ActivatePerformancePlan(_config.UltimateModePowerPlanGuid);
+
         if (_config.TimerResolution)
             EnableTimerResolutionInternal();
     }
@@ -573,7 +633,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 TimerResolutionService.Disable();
         }
 
-        if (_config.OptimizePower)
+        if (_config.OptimizePower || _config.UltimateModeForValorant)
         {
             if (_config.RestorePowerOnExit)
                 PowerManager.RestoreOriginalPlan();
@@ -585,7 +645,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(IsTimerResolutionActive));
 
         bool restoredAny = (_config.TimerResolution && _config.RestoreTimerOnExit) ||
-                           (_config.OptimizePower && _config.RestorePowerOnExit);
+                           ((_config.OptimizePower || _config.UltimateModeForValorant) && _config.RestorePowerOnExit);
         string suffix = restoredAny ? "，优化已还原。" : "。";
         GameExited?.Invoke($"{exitedNames} 已退出{suffix}");
 
@@ -614,7 +674,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (_config.ThrottleSGuard)     items.Add("SGuard 已限制");
         if (_config.BoostGamePriority)  items.Add("进程优先级 High");
         if (_config.UnbindCPU)          items.Add("核心 0 已解绑");
-        if (_config.OptimizePower)      items.Add("高性能电源");
+        if (_config.OptimizePower || _config.UltimateModeForValorant)      items.Add("卓越电源");
         if (_config.FlushDNS)           items.Add("DNS 已刷新");
         if (_config.TimerResolution)    items.Add("计时器 1ms");
         return items.Count > 0 ? string.Join(" · ", items) : "（所有优化已关闭）";
@@ -651,6 +711,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _timerResolutionPoller.Stop();
         _cts.Cancel();
         _cts.Dispose();
+        GlobalHotkeyService.Shutdown();
         if (_config.RestoreTimerOnExit)
             TimerResolutionService.Disable();
     }

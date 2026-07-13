@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Forms;
@@ -41,6 +41,7 @@ namespace SGuardLimiterMax
             var helper = new WindowInteropHelper(this);
             helper.EnsureHandle();
             HwndSource.FromHwnd(helper.Handle)?.AddHook(WndProc);
+            GlobalHotkeyService.Initialize(helper.Handle);
 
             // When launched via --autostart, App.OnStartup() will NOT call Show() on
             // this window, so we never flash a UI. Defer making the tray icon visible
