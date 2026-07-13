@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.IO;
 using System.Text.RegularExpressions;
 
 namespace SGuardLimiterMax.Services;
@@ -31,8 +32,9 @@ public static class PowerManager
         var guid = GetActivePlanGuid();
         if (guid == null) return;
         // Never treat a performance plan as the "original" to restore to.
-        if (guid == GuidUltimatePerformance || guid == GuidHighPerformance) return;
+        if (guid == GuidUltimatePerformance || guid == GuidHighPerformance) { DiagLog("STARTUP skipped (performance plan: " + guid + ")"); return; }
         _startupGuid = guid;
+        DiagLog("STARTUP captured: " + _startupGuid);
     }
 
     /// <summary>
@@ -93,11 +95,23 @@ public static class PowerManager
         if (!string.IsNullOrWhiteSpace(targetGuid))
         {
             TrySetPlan(targetGuid);
+            DiagLog("ACTIVATE target=" + targetGuid + " | capturedOrig=" + (_originalGuid ?? "null"));
             return;
         }
 
         if (!TrySetPlan(GuidUltimatePerformance))
             TrySetPlan(GuidHighPerformance);
+    }
+
+    private static void DiagLog(string msg)
+    {
+        try
+        {
+            string logPath = Path.Combine(AppContext.BaseDirectory, "power_diag.log");
+            string line = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " | " + msg;
+            File.AppendAllText(logPath, line + Environment.NewLine);
+        }
+        catch { }
     }
 
     /// <summary>
@@ -108,7 +122,8 @@ public static class PowerManager
     {
         // Priority: captured original → startup capture → balanced (always safe)
         string? guidToRestore = _originalGuid ?? _startupGuid ?? GuidBalanced;
-        TrySetPlan(guidToRestore);
+        bool ok = TrySetPlan(guidToRestore);
+        DiagLog("RESTORE called | guid=" + guidToRestore + " | success=" + ok + " | origWas=" + (_originalGuid ?? "null") + " | startup=" + (_startupGuid ?? "null"));
         _originalGuid = null;
     }
 
