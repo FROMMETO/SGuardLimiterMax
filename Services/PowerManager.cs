@@ -1,4 +1,4 @@
-using System.Diagnostics;
+ï»¿using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 
@@ -43,7 +43,6 @@ public static class PowerManager
     /// </summary>
     public static List<PowerPlanInfo> GetAllPlans()
     {
-        var result = new List<PowerPlanInfo>();
         try
         {
             var psi = new ProcessStartInfo
@@ -55,22 +54,35 @@ public static class PowerManager
                 RedirectStandardOutput = true,
             };
             using var proc = Process.Start(psi);
-            if (proc == null) return result;
+            if (proc == null) return [];
             string output = proc.StandardOutput.ReadToEnd();
             proc.WaitForExit(3000);
-
-            // Line format: "Power Scheme GUID: <guid>  (<name>) *"  (* = active)
-            foreach (Match m in Regex.Matches(output,
-                @"GUID:\s*([0-9a-fA-F\-]{36})\s+\(([^)]+)\)(\s+\*)?",
-                RegexOptions.IgnoreCase))
-            {
-                string guid     = m.Groups[1].Value.Trim().ToLowerInvariant();
-                string name     = m.Groups[2].Value.Trim();
-                bool   isActive = m.Groups[3].Value.Trim() == "*";
-                result.Add(new PowerPlanInfo(guid, name, isActive));
-            }
+            return ParsePlansFromOutput(output);
         }
         catch { }
+        return [];
+    }
+
+    /// <summary>
+    /// Parses the output of <c>powercfg /list</c> into a list of <see cref="PowerPlanInfo"/>.
+    /// Exposed for unit testing.
+    /// </summary>
+    internal static List<PowerPlanInfo> ParsePlansFromOutput(string output)
+    {
+        var result = new List<PowerPlanInfo>();
+        if (string.IsNullOrWhiteSpace(output)) return result;
+
+        // Line format: "Power Scheme GUID: <guid>  (<name>) *"  (* = active)
+        foreach (Match m in Regex.Matches(output,
+            @"GUID:\s*([0-9a-fA-F\-]{36})\s+\(([^)]+)\)(\s+\*)?",
+            RegexOptions.IgnoreCase))
+        {
+            string guid     = m.Groups[1].Value.Trim().ToLowerInvariant();
+            string name     = m.Groups[2].Value.Trim();
+            bool   isActive = m.Groups[3].Value.Trim() == "*";
+            result.Add(new PowerPlanInfo(guid, name, isActive));
+        }
+
         return result;
     }
 
@@ -86,7 +98,7 @@ public static class PowerManager
     /// <summary>
     /// Captures the current active plan, then activates the best available
     /// performance plan. If <paramref name="targetGuid"/> is provided, that
-    /// specific plan is used; otherwise falls back to Ultimate ¡ú High Performance.
+    /// specific plan is used; otherwise falls back to Ultimate ï¿½ï¿½ High Performance.
     /// </summary>
     public static void ActivatePerformancePlan(string? targetGuid = null)
     {
@@ -111,12 +123,23 @@ public static class PowerManager
         DiagLog("ACTIVATE auto | triedUltimate first");
     }
 
+    private const long MaxDiagLogSize = 1 * 1024 * 1024; // 1 MB
+
     private static void DiagLog(string msg)
     {
         try
         {
             string logPath = Path.Combine(AppContext.BaseDirectory, "power_diag.log");
+            string backupPath = logPath + ".1";
             string line = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " | " + msg;
+
+            // Rotate if the log has grown beyond the size cap.
+            if (File.Exists(logPath) && new FileInfo(logPath).Length > MaxDiagLogSize)
+            {
+                if (File.Exists(backupPath)) File.Delete(backupPath);
+                File.Move(logPath, backupPath);
+            }
+
             File.AppendAllText(logPath, line + Environment.NewLine);
         }
         catch { }
@@ -128,7 +151,7 @@ public static class PowerManager
     /// </summary>
     public static void RestoreOriginalPlan()
     {
-        // Priority: captured original ¡ú startup capture ¡ú balanced (always safe)
+        // Priority: captured original ï¿½ï¿½ startup capture ï¿½ï¿½ balanced (always safe)
         string? guidToRestore = _originalGuid ?? _startupGuid ?? GuidBalanced;
         bool ok = TrySetPlan(guidToRestore);
         DiagLog("RESTORE called | guid=" + guidToRestore + " | success=" + ok + " | origWas=" + (_originalGuid ?? "null") + " | startup=" + (_startupGuid ?? "null"));

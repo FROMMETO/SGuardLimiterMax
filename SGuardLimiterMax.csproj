@@ -23,12 +23,23 @@
     <Company>Open Source</Company>
     <Product>SGuard Limiter</Product>
     <Description>SGuard 游戏进程优化与电源管理工具</Description>
+
+    <!-- Make internal members available to the test project -->
   </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SGuardLimiterMax.Tests" />
+  </ItemGroup>
 
   <!-- System Tray icon resource -->
   <ItemGroup>
     <Resource Include="Assets\SGuard_Limiter_Max.ico" />
     <Resource Include="Assets\SGuard_Limiter_Max.png" />
+  </ItemGroup>
+
+  <!-- Exclude the test project source files from the main app build -->
+  <ItemGroup>
+    <Compile Remove="SGuardLimiterMax.Tests\**" />
   </ItemGroup>
 
 </Project>

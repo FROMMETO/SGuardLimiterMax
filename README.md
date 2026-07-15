@@ -29,7 +29,7 @@ A lightweight Windows utility that automatically applies OS-level performance op
 | **游戏退出托盘通知** | 游戏退出后发送系统通知，告知优化已还原 |
 | **检测到游戏自动进入托盘** | 游戏启动后主界面自动最小化至系统托盘，后台静默运行 |
 | **游戏退出后继续监控** | 保持驻留等待下次游戏启动（默认关闭，即游戏退出后程序自动结束） |
-| **开机自动启动** | 注册至 `HKCU\...\Run`，以 `--autostart` 模式静默启动（不显示主界面） |
+| **开机自动启动** | 注册至 Windows Task Scheduler（`schtasks.exe`），以 `--autostart` 模式静默启动（不显示主界面） |
 
 默认开启：限制 SGuard、提升游戏进程优先级、刷新 DNS 缓存。
 
@@ -101,12 +101,13 @@ proc.ProcessorAffinity = (nint)(1 << lastCoreIndex);  // 限定末尾核心
 通过 `powercfg /list` 查询系统所有电源计划，`powercfg /setactive {GUID}` 切换，`ipconfig /flushdns` 刷新 DNS。支持用户从列表中指定目标计划，未指定时自动选择卓越性能或高性能。
 
 **TimerResolutionService** — `Services/TimerResolutionService.cs`
-P/Invoke 调用 `winmm.dll`：
+P/Invoke 调用 `ntdll.dll`：
 ```csharp
-[DllImport("winmm.dll")] static extern uint timeBeginPeriod(uint uPeriod);
-[DllImport("winmm.dll")] static extern uint timeEndPeriod(uint uPeriod);
+[DllImport("ntdll.dll")]
+private static extern int NtSetTimerResolution(
+    uint DesiredResolution, bool SetResolution, out uint CurrentResolution);
 ```
-提供竞技 1ms、推荐 2ms、轻薄本 4ms、旧机型 8ms 四档可选，退出时自动还原。
+支持 0.5ms / 1ms / 2ms / 4ms 多档可选，以及“系统默认”档位，退出时自动还原。
 
 **ThemeManager** — `Services/ThemeManager.cs`
 启动时读取注册表键 `HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize\AppsUseLightTheme` 检测系统主题，自动匹配深色或浅色主题资源字典（`Resources/DarkTheme.xaml` / `Resources/LightTheme.xaml`）。点击侧边栏主题按钮可在两套主题间即时切换。
@@ -115,7 +116,7 @@ P/Invoke 调用 `winmm.dll`：
 自定义 WPF 弹窗，用于展示"立即应用"和"添加游戏"等操作的结果摘要。支持 Enter / Escape 快捷键关闭，窗口可拖拽，视觉风格与主界面保持一致。
 
 **StartupManager** — `Services/StartupManager.cs`
-读写 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`，每次启动时同步注册表路径，确保移动 exe 后自启仍有效。
+通过 `schtasks.exe` 创建当前用户登录时触发的 Task Scheduler 任务，并以最高权限运行；同时清理旧版本残留的 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 注册表项。每次启动时同步任务路径，确保移动 exe 后自启仍有效。
 
 **ConfigManager** — `Services/ConfigManager.cs`
 `System.Text.Json` 序列化/反序列化 `AppConfig`，配置文件与 exe 同目录，完全便携。

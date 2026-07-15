@@ -25,13 +25,22 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      - name: Restore
+        run: dotnet restore --nologo
+
+      - name: Build
+        run: dotnet build --no-restore --nologo
+
+      - name: Test
+        run: dotnet test --no-build --nologo
+
       # ── Standalone (self-contained, ~70 MB) ───────────────────────────────────
       - name: Publish standalone
         run: |
           dotnet publish SGuardLimiterMax.csproj `
             -c Release `
             -p:PublishProfile=Standalone `
-            --nologo
+            --nologo --no-restore
 
       # ── Framework-dependent (~2 MB) ───────────────────────────────────────────
       - name: Publish framework
@@ -39,7 +48,7 @@ jobs:
           dotnet publish SGuardLimiterMax.csproj `
             -c Release `
             -p:PublishProfile=Framework `
-            --nologo
+            --nologo --no-restore
 
       # ── Rename outputs ────────────────────────────────────────────────────────
       - name: Rename artifacts

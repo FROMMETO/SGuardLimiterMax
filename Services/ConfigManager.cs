@@ -21,24 +21,30 @@ public static class ConfigManager
     /// <summary>
     /// Loads config from disk. Creates a default file if none exists.
     /// </summary>
-    public static AppConfig Load()
+    public static AppConfig Load() => Load(ConfigPath);
+
+    /// <summary>
+    /// Loads config from the specified path. Creates a default file if none exists.
+    /// Exposed for unit testing.
+    /// </summary>
+    internal static AppConfig Load(string path)
     {
-        if (!File.Exists(ConfigPath))
+        if (!File.Exists(path))
         {
             var defaults = new AppConfig();
-            Save(defaults);
+            Save(defaults, path);
             return defaults;
         }
 
         try
         {
-            string json = File.ReadAllText(ConfigPath);
+            string json = File.ReadAllText(path);
             return JsonSerializer.Deserialize<AppConfig>(json, JsonOptions) ?? new AppConfig();
         }
         catch
         {
             var defaults = new AppConfig();
-            Save(defaults);
+            Save(defaults, path);
             return defaults;
         }
     }
@@ -46,12 +52,18 @@ public static class ConfigManager
     /// <summary>
     /// Persists the current config state to disk.
     /// </summary>
-    public static void Save(AppConfig config)
+    public static void Save(AppConfig config) => Save(config, ConfigPath);
+
+    /// <summary>
+    /// Persists the config to the specified path.
+    /// Exposed for unit testing.
+    /// </summary>
+    internal static void Save(AppConfig config, string path)
     {
         try
         {
             string json = JsonSerializer.Serialize(config, JsonOptions);
-            File.WriteAllText(ConfigPath, json);
+            File.WriteAllText(path, json);
         }
         catch { }
     }

@@ -37,6 +37,6 @@ This tool operates exclusively through documented Windows APIs:
 - `powercfg.exe` — power plan switching
 - `ipconfig /flushdns` — DNS cache flush
 - `winmm.dll timeBeginPeriod` — timer resolution
-- `HKCU\...\Run` registry key — startup registration
+- `schtasks.exe` — Task Scheduler logon trigger with highest privileges
 
 It does **not** inject code, modify game files, read game memory, install drivers, or communicate with any remote server.

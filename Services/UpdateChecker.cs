@@ -19,7 +19,7 @@ public static class UpdateChecker
         Timeout = TimeSpan.FromSeconds(10)
     };
 
-    private const string ApiUrl =
+    public static string ApiUrl { get; set; } =
         "https://api.github.com/repos/St3rPig/SGuardLimiterMax/releases/latest";
 
     /// <summary>
